@@ -72,11 +72,11 @@ export function BulkActionsBar({ selectedIds, onClearSelection }: BulkActionsBar
   // Show button for ALL ecom orders from same client that aren't prepaid yet
   const prepaidInfo = useMemo(() => {
     if (selectedOrders.length === 0) return { canPrepay: false, clientId: '', clientName: '' };
-    
+
     const allEcom = selectedOrders.every(o => o.order_type === 'ecom');
     const allSameClient = selectedOrders.every(o => o.client_id === selectedOrders[0].client_id);
     const noneAlreadyPrepaid = selectedOrders.every(o => !o.prepaid_by_company);
-    
+
     return {
       canPrepay: allEcom && allSameClient && noneAlreadyPrepaid,
       clientId: selectedOrders[0]?.client_id || '',
@@ -92,16 +92,16 @@ export function BulkActionsBar({ selectedIds, onClearSelection }: BulkActionsBar
         .update({ driver_id: driverId, fulfillment: "InHouse", third_party_id: null, status: "Assigned" })
         .in("id", selectedIds)
         .in("status", ["New", "Assigned"]); // Only update status for New or already Assigned orders
-      
+
       if (error) throw error;
-      
+
       // Also update orders that are in other statuses (just driver_id and fulfillment, not status)
       const { error: error2 } = await supabase
         .from("orders")
         .update({ driver_id: driverId, fulfillment: "InHouse", third_party_id: null })
         .in("id", selectedIds)
         .not("status", "in", '("New","Assigned")');
-      
+
       if (error2) throw error2;
     },
     onSuccess: () => {
@@ -121,15 +121,15 @@ export function BulkActionsBar({ selectedIds, onClearSelection }: BulkActionsBar
       // Update third_party_id, set fulfillment to ThirdParty, clear driver_id, and set status to "Assigned"
       const { error } = await supabase
         .from("orders")
-        .update({ 
-          third_party_id: thirdPartyId, 
-          fulfillment: "ThirdParty", 
-          driver_id: null, 
+        .update({
+          third_party_id: thirdPartyId,
+          fulfillment: "ThirdParty",
+          driver_id: null,
           status: "Assigned",
           third_party_settlement_status: "Pending"
         })
         .in("id", selectedIds);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -152,35 +152,35 @@ export function BulkActionsBar({ selectedIds, onClearSelection }: BulkActionsBar
           .from("orders")
           .select("id, order_id, driver_id, third_party_id, fulfillment")
           .in("id", selectedIds);
-        
-        const ordersWithoutAssignment = orders?.filter(order => 
+
+        const ordersWithoutAssignment = orders?.filter(order =>
           !order.driver_id && !order.third_party_id
         ) || [];
-        
+
         if (ordersWithoutAssignment.length > 0) {
           throw new Error(`Cannot mark orders as Delivered without assigning a driver or third party. ${ordersWithoutAssignment.length} order(s) have no assignment.`);
         }
       }
-      
+
       // First update the status
       const updateData: any = { status };
       if (status === 'Delivered') {
         updateData.delivered_at = new Date().toISOString();
       }
-      
+
       const { error } = await supabase.from("orders").update(updateData).in("id", selectedIds);
       if (error) throw error;
 
       // If status is Delivered, process accounting for each order
       if (status === 'Delivered') {
         console.log(`Processing delivery accounting for ${selectedIds.length} orders...`);
-        
+
         // Process each order through the edge function
         for (const orderId of selectedIds) {
           const { error: functionError } = await supabase.functions.invoke('process-order-delivery', {
             body: { orderId }
           });
-          
+
           if (functionError) {
             console.error(`Error processing delivery for order ${orderId}:`, functionError);
             // Continue processing other orders even if one fails
@@ -307,7 +307,7 @@ export function BulkActionsBar({ selectedIds, onClearSelection }: BulkActionsBar
               <CommandList>
                 <CommandEmpty>No status found.</CommandEmpty>
                 <CommandGroup>
-                  {["New", "Assigned", "PickedUp", "Delivered", "Returned", "Cancelled"].map((status) => (
+                  {["New", "Assigned", "PickedUp", "DriverCollected", "Returned", "Cancelled"].map((status) => (
                     <CommandItem
                       key={status}
                       onSelect={() => {

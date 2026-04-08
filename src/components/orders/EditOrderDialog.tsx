@@ -243,7 +243,7 @@ export default function EditOrderDialog({ order, open, onOpenChange }: EditOrder
           throw new Error('Order updated but accounting failed: ' + functionError.message);
         }
 
-        if (!order?.company_paid_for_order) {
+        if (!order?.company_paid_for_order && !order.prepaid_by_runners) {
           const { error: walletError } = await (supabase.rpc as any)('update_driver_wallet_atomic', {
             p_driver_id: updateData.driver_id,
             p_amount_usd: order?.driver_paid_for_client ? (orderAmountUsd * -1) : orderAmountUsd + deliveryFeeUsd,

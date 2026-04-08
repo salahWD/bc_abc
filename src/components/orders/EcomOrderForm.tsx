@@ -455,6 +455,7 @@ export function EcomOrderForm() {
         client_fee_rule: /* client.client_rules?.[0]?.fee_rule || */ "ADD_ON",
         prepaid_by_runners: rowData.prepaid_by_company,
         prepaid_by_company: false,
+        prepay_amount_usd: rowData.prepaid_by_company ? orderAmount : 0,
         status: "New",
         address: rowData.customer_address || "",
         client_settlement_status: "Unpaid",
@@ -462,6 +463,33 @@ export function EcomOrderForm() {
       });
 
       if (error) throw error;
+
+      if (rowData.prepaid_by_company) {
+
+        // Debit cashbox atomically when company pays for the order
+        const today = new Date().toISOString().split('T')[0];
+        const { error: cashboxError } = await (supabase.rpc as any)('update_cashbox_atomic', {
+          p_date: today,
+          p_cash_in_usd: 0,
+          p_cash_in_lbp: 0,
+          p_cash_out_usd: orderAmount,
+          p_cash_out_lbp: 0,
+        });
+
+        if (cashboxError) {
+          throw new Error('Failed to update cashbox: ' + cashboxError.message);
+        }
+
+        // await supabase.from('client_transactions').insert({
+        //   client_id: rowData.client_id,
+        //   type: 'Debit',
+        //   amount_usd: orderAmount,
+        //   amount_lbp: 0,
+        //   note: `Payment from client - order ${rowData.voucher_no} - (paid by company)`
+        // });
+
+      }
+
       return rowData.id;
     },
     onSuccess: (rowId) => {

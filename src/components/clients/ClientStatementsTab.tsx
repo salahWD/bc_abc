@@ -102,8 +102,8 @@ export function ClientStatementsTab() {
         .lte('created_at', dateTo + 'T23:59:59')
         .order('created_at', { ascending: false });
 
+      console.log(selectedClient, dateFrom, dateTo, data)
       if (error) throw error;
-
       return data?.filter(order => {
         const orderRef = order.order_type === 'ecom' ? (order.voucher_no || order.order_id) : order.order_id;
         // Filter out orders already in statements
@@ -221,15 +221,19 @@ export function ClientStatementsTab() {
           dueToClientLbp = -1 * (Number(order.order_amount_lbp || 0) + Number(order.delivery_fee_lbp || 0));
         } else {
           if (order.company_paid_for_order) {
-            dueToClientUsd = (Number(order.order_amount_usd || 0) + Number(order.delivery_fee_usd || 0)) * -1;
-            dueToClientLbp = (Number(order.order_amount_lbp || 0) + Number(order.delivery_fee_lbp || 0)) * -1;
+            dueToClientUsd = -1 * (Number(order.order_amount_usd || 0) + Number(order.delivery_fee_usd || 0));
+            dueToClientLbp = -1 * (Number(order.order_amount_lbp || 0) + Number(order.delivery_fee_lbp || 0));
           } else {
             dueToClientUsd = Number(order.order_amount_usd || 0);
             dueToClientLbp = Number(order.order_amount_lbp || 0);
           }
         }
       } else {
-        dueToClientUsd = Number(order.amount_due_to_client_usd || 0);
+        if (order.prepaid_by_runners) {
+          dueToClientUsd = -1 * (Number(order.order_amount_usd || 0) + Number(order.delivery_fee_usd || 0));
+        } else {
+          dueToClientUsd = Number(order.amount_due_to_client_usd || 0);
+        }
         dueToClientLbp = 0;
       }
 
